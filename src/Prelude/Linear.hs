@@ -33,6 +33,7 @@ module Prelude.Linear
 import qualified Unsafe.Linear as Unsafe
 import Prelude hiding
   ( ($)
+  , id
   , const
   , seq
   , Functor(..)
@@ -55,6 +56,9 @@ import qualified Prelude
 ($) f x = f x
 
 infixr 0 $
+
+id :: a ->. a
+id x = x
 
 const :: a ->. b -> a
 const x _ = x
@@ -207,7 +211,7 @@ lreturn :: LMonad m => a ->. m a
 lreturn x = lpure x
 
 ljoin :: LMonad m => m (m a) ->. m a
-ljoin action = action `lbind` (\x -> x)
+ljoin action = action `lbind` id
 
 -- | Type of 'monadBuilder'. Note how the constraint on @m@ varies depending on
 -- the field. The constraints are solved lazily when a field is used by the do
