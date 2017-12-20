@@ -7,10 +7,11 @@ import Control.Monad (void)
 import qualified Data.List as L
 import Data.Typeable
 import qualified Foreign.Heap as Heap
-import qualified Foreign.List as List
 import Foreign.List (List)
-import qualified Foreign.Marshal.Pure as Manual
+import qualified Foreign.List as List
 import Foreign.Marshal.Pure (Pool)
+import qualified Foreign.Marshal.Pure as Manual
+import Prelude (return)
 import Prelude.Linear
 import Test.Hspec
 import Test.QuickCheck
