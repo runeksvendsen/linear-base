@@ -21,7 +21,6 @@ module System.IO.Resource
     -- * Monadic primitives
     -- $monad
   , return
-  , BuilderType(..)
   , builder
     -- * Files
     -- $files
@@ -60,6 +59,8 @@ import qualified Prelude as P
   -- monads.
 import qualified System.IO.Linear as Linear
 import qualified System.IO as System
+import qualified Control.Monad.Linear as Linear
+import qualified Control.Monad.Linear.Builder as Linear
 
 newtype ReleaseMap = ReleaseMap (IntMap (Linear.IO ()))
 
@@ -94,9 +95,9 @@ run (RIO action) = do
     moveLinearIO :: Movable a => Linear.IO a ->. Linear.IO (Unrestricted a)
     moveLinearIO action' = do
         result <- action'
-        Linear.return $ move result
+        Linear.pure $ move result
       where
-        Linear.Builder{..} = Linear.builder -- used in the do-notation
+        Linear.Builder{..} = Linear.monadBuilder -- used in the do-notation
 
 -- | Should not be applied to a function which acquires or releases resources.
 unsafeFromSystemIO :: System.IO a ->. RIO a
@@ -106,7 +107,7 @@ unsafeFromSystemIO action = RIO $ \ _ -> Linear.fromSystemIO action
 
 
 return :: a ->. RIO a
-return a = RIO $ \_releaseMap -> Linear.return a
+return a = RIO $ \_releaseMap -> Linear.pure a
 
 -- | Type of 'Builder'
 data BuilderType = Builder
@@ -124,14 +125,14 @@ builder =
         a <- unRIO x releaseMap
         unRIO (f a) releaseMap
       where
-        Linear.Builder {..} = Linear.builder -- used in the do-notation
+        Linear.Builder {..} = Linear.monadBuilder -- used in the do-notation
 
     (>>) :: forall b. RIO () ->. RIO b ->. RIO b
     x >> y = RIO $ \releaseMap -> do
         unRIO x releaseMap
         unRIO y releaseMap
       where
-        Linear.Builder {..} = Linear.builder -- used in the do-notation
+        Linear.Builder {..} = Linear.monadBuilder -- used in the do-notation
   in
     Builder{..}
 
@@ -201,7 +202,7 @@ unsafeRelease (UnsafeResource key _) = RIO (\st -> Linear.mask_ (releaseWith key
         () <- releaseMap IntMap.! key
         Linear.writeIORef rrm (ReleaseMap (IntMap.delete key releaseMap))
       where
-        Linear.Builder {..} = Linear.builder -- used in the do-notation
+        Linear.Builder {..} = Linear.monadBuilder -- used in the do-notation
 
 -- XXX: long lines
 unsafeAcquire
@@ -212,9 +213,9 @@ unsafeAcquire acquire release = RIO $ \rrm -> Linear.mask_ (do
     Unrestricted resource <- acquire
     Unrestricted (ReleaseMap releaseMap) <- Linear.readIORef rrm
     () <- Linear.writeIORef rrm (ReleaseMap (IntMap.insert (releaseKey releaseMap) (release resource) releaseMap))
-    Linear.return $ UnsafeResource (releaseKey releaseMap) resource)
+    Linear.pure $ UnsafeResource (releaseKey releaseMap) resource)
   where
-    Linear.Builder {..} = Linear.builder -- used in the do-notation
+    Linear.Builder {..} = Linear.monadBuilder -- used in the do-notation
 
     releaseKey releaseMap =
       case IntMap.null releaseMap of
