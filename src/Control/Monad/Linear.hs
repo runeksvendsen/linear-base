@@ -4,16 +4,19 @@
 
 module Control.Monad.Linear
   ( -- * Linear monad hierarchy
-    -- $ monad
+    -- $monad
     Functor(..)
   , Applicative(..)
   , Monad(..)
   , MonadFail(..)
   , return
   , join
+    -- * Enriched functor combinators
+    -- $combinators
+  , void
   ) where
 
-import Prelude.Linear (String, id)
+import Prelude.Linear (String, id, Consumable(..))
 
 -- $monad
 
@@ -32,6 +35,10 @@ import Prelude.Linear (String, id)
 -- | Enriched linear functors.
 class Functor f where
   fmap :: (a ->. b) ->. f a ->. f b
+
+(<$>) :: Functor f => (a ->. b) ->. f a ->. f b
+(<$>) = fmap
+{-# INLINE (<$>) #-}
 
 -- | Enriched linear applicative functors
 class Functor f => Applicative f where
@@ -53,3 +60,8 @@ return x = pure x
 
 join :: Monad m => m (m a) ->. m a
 join action = action >>= id
+
+-- $combinators
+
+void :: (Functor f, Consumable a) => f a -> f ()
+void x = consume <$> x

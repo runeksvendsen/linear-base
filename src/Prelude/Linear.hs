@@ -40,6 +40,7 @@ import Prelude hiding
   , Functor(..)
   , Applicative(..)
   , Monad(..)
+  , Traversable(..)
   )
 import qualified Prelude
 
