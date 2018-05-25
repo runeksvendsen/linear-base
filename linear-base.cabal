@@ -17,10 +17,11 @@ cabal-version: >=1.10
 library
   hs-source-dirs: src
   exposed-modules:
-    Data.Traversable.Linear
     Control.Monad.Builder
     Control.Monad.Linear
     Control.Monad.Linear.Builder
+    Data.Profunctor.Linear
+    Data.Traversable.Linear
     Foreign.Marshal.Pure
     Prelude.Linear
     System.IO.Linear
