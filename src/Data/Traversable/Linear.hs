@@ -1,6 +1,9 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Data.Traversable.Linear
   ( -- * Linear traversable hierarchy
@@ -10,6 +13,9 @@ module Data.Traversable.Linear
   ) where
 
 import qualified Control.Monad.Linear as Linear
+import Data.Profunctor.Linear (Profunctor)
+import qualified Data.Profunctor.Linear as Profunctor
+import Data.Void
 import Prelude.Linear
 
 -- $traversable
@@ -23,7 +29,13 @@ class Functor f where
 
 -- | Enriched linear applicative functors
 class Functor t => Traversable t where
-  {-# MINIMAL traverse | sequenceA #-}
+  {-# MINIMAL traverseP, traverse | traverseP, sequenceA #-}
+
+  traverseP ::
+    ( Profunctor.Strong (,) () arr
+    , Profunctor.Strong Either Void arr
+    , Profunctor.Monoidal (,) () arr)
+    => (a `arr` b) -> (t a `arr` t b)
 
   traverse :: Linear.Applicative f => (a ->. f b) -> t a ->. f (t b)
   {-# INLINE traverse #-}
@@ -55,3 +67,29 @@ forM_
   :: (Linear.Monad m, Traversable t, Consumable (t ()))
   => t a ->. (a ->. m ()) -> m ()
 forM_ cont act = Linear.void $ forM cont act
+
+
+------------------------
+-- Standard instances --
+------------------------
+
+instance Functor [] where
+  fmap _ [] = []
+  fmap f (a:l) = (f a):(fmap f l)
+
+-- | A linear version of something Generic could derive
+toRepr :: [a] ->. Either () (a, [a])
+toRepr [] = Left ()
+toRepr (a:l) = Right (a, l)
+
+fromRepr :: Either () (a, [a]) ->. [a]
+fromRepr (Left ()) = []
+fromRepr (Right (a, l)) = a:l
+
+instance Traversable [] where
+  traverse _ [] = Linear.pure []
+  traverse f (a:l) = (:) Linear.<$> f a Linear.<*> traverse f l
+
+  traverseP p =
+    Profunctor.dimap toRepr fromRepr $
+    Profunctor.second (p Profunctor.*** traverseP p)
