@@ -6,6 +6,7 @@ module Control.Monad.Linear
   ( -- * Linear monad hierarchy
     -- $monad
     Functor(..)
+  , (<$>)
   , Applicative(..)
   , Monad(..)
   , MonadFail(..)
