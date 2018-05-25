@@ -53,6 +53,47 @@ class Functor t => Traversable t where
   {-# INLINE sequence #-}
   sequence = sequenceA
 
+-- Helpers for traverseP.
+-- TODO: find a good place
+
+-- | To understand 'Traversed', let us think about the standard traversal for
+-- list, whose main case is defined as @traverse f (x:l) = (:) <$> f x <*>
+-- traverse f l@. What is going to happen is during the traversals, two
+-- different sort of things will be pushed to the stack: the @f a@, and the
+-- constructors. A value of 'Traversed' if of the form @Next a1 (Next a2 … (Next
+-- an (NoMore (\b1 b2 … bn -> u))) … )@ where the @ai@ represent the @f x@,
+-- while the closure in the final @NoMore@ represents the constructors (or
+-- rather, it represents the expression with holes @(:) <$> _ <*> traverse f l@,
+-- that is the constructor, and how it is applied). Therefore, a value of type
+-- 'Traversed a b t' can be seen as the reification of a traversal.
+data Traversed a b t
+  = NoMore t
+  | Next a (Traversed a b (b ->. t))
+
+toRepr :: Traversed a b t ->. Either t (a, Traversed a b (b ->. t))
+toRepr (NoMore t) = Left t
+toRepr (Next a k) = Right (a, k)
+
+ofRepr :: Either t (a, Traversed a b (b ->. t)) ->. Traversed a b t
+ofRepr (Left t) = NoMore t
+ofRepr (Right (a, k)) = Next a k
+
+-- instance Functor (Traversed a b) where
+
+emit :: a ->. Traversed a b b
+emit a = Next a (NoMore id)
+
+traverseToTraversed :: Traversable t => t a -> Traversed a b (t b)
+traverseToTraversed x = traverse emit x
+
+traversePTraversed ::
+  ( Profunctor.Strong Either Void arr
+  , Profunctor.Monoidal (,) () arr)
+  => (a `arr` b) -> (Traversed a c t `arr` Traversed b c t)
+traversePTraversed f = Profunctor.dimap toRepr ofRepr $
+  Profunctor.second $
+  f Profunctor.*** traversePTraversed f
+
 -- TODO: when polymorphic flip is available, implement in terms of flip
 forM :: (Linear.Monad m, Traversable t) => t a ->. (a ->. m b) -> m (t b)
 forM cont act = mapM act cont
@@ -77,19 +118,11 @@ instance Functor [] where
   fmap _ [] = []
   fmap f (a:l) = (f a):(fmap f l)
 
--- | A linear version of something Generic could derive
-toRepr :: [a] ->. Either () (a, [a])
-toRepr [] = Left ()
-toRepr (a:l) = Right (a, l)
+-- instance Traversable [] where
+--   traverse _ [] = Linear.pure []
+--   traverse f (a:l) = (:) Linear.<$> f a Linear.<*> traverse f l
 
-fromRepr :: Either () (a, [a]) ->. [a]
-fromRepr (Left ()) = []
-fromRepr (Right (a, l)) = a:l
-
-instance Traversable [] where
-  traverse _ [] = Linear.pure []
-  traverse f (a:l) = (:) Linear.<$> f a Linear.<*> traverse f l
-
-  traverseP p =
-    Profunctor.dimap toRepr fromRepr $
-    Profunctor.second (p Profunctor.*** traverseP p)
+--   traverseP p =
+--     -- Profunctor.dimap toRepr fromRepr $
+--     -- Profunctor.second (p Profunctor.*** traverseP p)
+--     traverse _
