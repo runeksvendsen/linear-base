@@ -46,10 +46,9 @@ mergeN (Heap k1 a1 h1) (Heap k2 a2 h2) pool =
     --- `let`.
     testAndRebuild :: Unrestricted k ->. a ->. Box (List (NEHeap k a)) ->. Unrestricted k ->. a ->. Box (List (NEHeap k a)) ->. Pool ->. NEHeap k a
     testAndRebuild (Unrestricted k1') a1' h1' (Unrestricted k2') a2' h2' pool' =
-      if k1' <= k2' then
-        Heap k1' a1' (Manual.alloc (List.Cons (Heap k2' a2' h2') h1') pool')
-      else
-        Heap k2' a2' (Manual.alloc (List.Cons (Heap k1' a1' h1') h2') pool')
+      case k1' <= k2' of
+        -- True -> Heap k1' a1' (Manual.alloc (List.Cons (Heap k2' a2' h2') h1') pool')
+        False -> Heap k2' a2' (Manual.alloc (List.Cons (Heap k1' a1' h1') h2') pool')
 
 mergeN' :: forall k a. (Manual.Representable k, Manual.Representable a, Movable k, Ord k) => NEHeap k a ->. Heap k a ->. Pool ->. NEHeap k a
 mergeN' h Empty pool = pool `lseq` h
