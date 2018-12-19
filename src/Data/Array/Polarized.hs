@@ -11,7 +11,7 @@ import Prelude.Linear
 import qualified Data.Functor.Linear as Data
 
 data PushArray a where
-  PushArray :: (forall r b. (a ->. b) -> DArray b ->. r) ->. Int -> PushArray a
+  PushArray :: (forall b. (a ->. b) -> DArray b ->. ()) ->. Int -> PushArray a
   -- A note on implementation: `exists b. ((a -> b), DArray b)` adjoins freely
   -- the structure of contravariant functor to `DArray`. Because it appears to
   -- the left of an arrow, we can curry the existential quantification (and,
@@ -30,5 +30,5 @@ append (PushArray kl nl) (PushArray kr nr) =
       (\f dest -> parallelApply f kl kr (DArray.split nl dest))
       (nl+nr)
   where
-    parallelApply :: (a ->. b) -> ((a ->. b) -> DArray b ->. r) ->. ((a ->. b) -> DArray b ->. r) ->. (DArray b, DArray b) ->. r
-    parallelApply f' kl' kr' (dl, dr) = (kl' f' dl, kr' f' dr)
+    parallelApply :: (a ->. b) -> ((a ->. b) -> DArray b ->. ()) ->. ((a ->. b) -> DArray b ->. ()) ->. (DArray b, DArray b) ->. ()
+    parallelApply f' kl' kr' (dl, dr) = kl' f' dl `lseq` kr' f' dr
