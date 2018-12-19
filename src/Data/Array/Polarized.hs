@@ -1,7 +1,10 @@
+{-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LinearTypes #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Data.Array.Polarized where
 
@@ -26,16 +29,18 @@ data PushArray a where
   --
   -- An invariant is kept that, really, the first parameter is only past arrays
   -- of size @n@ (the second parameter, which is the length of the array).
+  --
+  -- TODO: I think that changing `()` as the return type to `r` for an arbitrary
+  -- (linear) `Monoid` r would also let me implement `concat :: PushArray
+  -- (PushArray a) -> PushArray a`, by instantiating to `PushArray a`. Maybe.
 
 instance Data.Functor PushArray where
   fmap f (PushArray k n) = PushArray (\g dest -> k (g . f) dest) n
 
--- TODO: Vector should be unrestricted here.
 -- XXX: the use of Vector in the type of alloc is temporary (see also "Data.Array.Destination")
 alloc :: PushArray a ->. Vector a
 alloc (PushArray k n) = DArray.alloc n (k id)
 
--- Is it preferable that a pushArray be only used linearly? If so should it be enforced in the type of walk?
 walk :: Vector a -> PushArray a
 walk as =
   PushArray
@@ -51,3 +56,21 @@ append (PushArray kl nl) (PushArray kr nr) =
   where
     parallelApply :: (a ->. b) -> ((a ->. b) -> DArray b ->. ()) ->. ((a ->. b) -> DArray b ->. ()) ->. (DArray b, DArray b) ->. ()
     parallelApply f' kl' kr' (dl, dr) = kl' f' dl `lseq` kr' f' dr
+
+data PullArray a where
+  PullArray :: s ->. (s ->. Maybe (s, a)) -> PullArray a
+  -- This is implemented as a mere stream. Which is broadly what we want of this
+  -- type, however, it is rather restrictive. I think we should be able to read
+  -- out the elements in any order for this.
+
+-- | /!\ Partial! Only works if both arrays have the same length
+zipWith :: (a ->. b ->. c) -> PullArray a ->. PullArray b ->. PullArray c
+zipWith f (PullArray s1 next1) (PullArray s2 next2) = PullArray (s1,s2) next
+  where
+    next :: (_, _) ->. Maybe _
+    next (s1', s2') = analyse (next1 s1', next2 s2')
+
+    analyse :: (Maybe _, Maybe _) ->. Maybe _
+    analyse (Just (s1'', a), Just (s2'', b)) = Just ((s1'', s2''), f a b)
+    analyse (Nothing, Nothing) = Nothing
+    analyse o = error @_ @(_ ->. _) "Polarized.zipWith: size mismatch" o
