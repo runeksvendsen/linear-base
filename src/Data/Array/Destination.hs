@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE LinearTypes #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Data.Array.Destination where
 
@@ -77,3 +78,15 @@ split n = Unsafe.toLinear unsafeSplit
     unsafeSplit (DArray ds) =
       let (dsl, dsr) = MVector.splitAt n ds in
         (DArray dsl, DArray dsr)
+
+-- | Assumes both arrays have the same size
+mirror :: forall a b. Vector a -> (a ->. b) -> DArray b ->. ()
+mirror as f ds
+  | Vector.length as == 0 = fill (f $ as Vector.! 0) ds
+  | otherwise =
+      mirrorHeadAndTail (Vector.head as) (Vector.tail as) (split 1 ds)
+  where
+    -- /!\ The first DArray has length 1.
+    mirrorHeadAndTail :: a -> Vector a -> (DArray b, DArray b) ->. ()
+    mirrorHeadAndTail x xs (dl, dr) =
+      fill (f x) dl `lseq` mirror xs f dr
