@@ -21,6 +21,7 @@ library
     Control.Monad.Linear
     Control.Monad.Linear.Builder
     Data.Array.Destination
+    Data.Array.Polarized
     Data.Functor.Linear
     Data.Vector.Linear
     Foreign.Marshal.Pure
