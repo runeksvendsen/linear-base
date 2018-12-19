@@ -66,3 +66,14 @@ fill = Unsafe.toLinear2 unsafeFill
         error "Destination.fill: requires a destination of size 1"
       else
         unsafeDupablePerformIO Prelude.$ MVector.write ds 0 a
+
+-- | @'split' n dest = (destl, destr)@ such as @destl@ has length @n@.
+--
+-- 'split' is total: if @n@ is larger than the length of @dest@, then @destr@ is
+-- empty.
+split :: Int -> DArray a ->. (DArray a, DArray a)
+split n = Unsafe.toLinear unsafeSplit
+  where
+    unsafeSplit (DArray ds) =
+      let (dsl, dsr) = MVector.splitAt n ds in
+        (DArray dsl, DArray dsr)
